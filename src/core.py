@@ -17,11 +17,12 @@ def normalize_normal_vector(n: torch.Tensor) -> torch.Tensor:
 
 def create_orthonormal_frame(normal: torch.Tensor, dir_mat: torch.Tensor) -> torch.Tensor:
     """
-    Create an orthonormal frame from a normal vector and a direction matrix.
+    Create an orthonormal frame from a unit normal vector and a direction matrix.
 
     ``normal`` is a 3D vector. ``dir_mat`` is a 3xN matrix of N 3D direction vectors.
     The returned tensor is a 3x3 orthonormal matrix whose first column is the normal vector, and the other two columns are orthonormal vectors in the plane defined by the normal vector and the first direction vector in ``dir_mat``.
     """
+    assert torch.isclose(torch.linalg.vector_norm(normal), torch.tensor(1.0, dtype=normal.dtype, device=normal.device)), "Normal vector must be a unit vector."
     dir_0 = dir_mat[:, 0]
     v_1 = normalize_normal_vector(torch.cross(normal, dir_0,dim=-1))
     v_2 = normalize_normal_vector(torch.cross(normal, v_1, dim=-1))
@@ -52,11 +53,11 @@ def intersect_LOS_with_plane(dir_mat: torch.Tensor, pos_mat: torch.Tensor, frame
     return intersections_2D
 
 
-def fit_conic(intersections_2D: torch.Tensor, frame_3D: torch.Tensor) -> torch.Tensor:
+def fit_conic(intersections_2D: torch.Tensor) -> torch.Tensor:
     """
     Fit ``ax^2 + by^2 + cxy + dx + ey + 1 = 0`` through five points.
 
-    ``intersections_2D`` has shape ``(2, 5)`` with one 2D point per column. ``frame_3D`` is a 3x3 orthonormal matrix whose last two columns are the two plane-basis vectors used to obtain the 2D coordinates.
+    ``intersections_2D`` has shape ``(2, 5)`` with one 2D point per column.
     The returned tensor has shape ``(5,)`` in ``(x^2, y^2, xy, x, y)`` coefficient order.
     """
     if intersections_2D.shape != (2, 5):
@@ -97,6 +98,6 @@ def master_function(normal_vectors: torch.Tensor, pos_mat: torch.Tensor, dir_mat
     w = normalize_normal_vector(normal_vectors)
     frame_3D = create_orthonormal_frame(w, dir_mat)
     intersections_2D = intersect_LOS_with_plane(dir_mat, pos_mat, frame_3D)
-    conic_coefficients = fit_conic(intersections_2D, frame_3D)
+    conic_coefficients = fit_conic(intersections_2D)
     free_terms = compute_free_terms(conic_coefficients)
     return free_terms
