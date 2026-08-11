@@ -95,6 +95,25 @@ def master_function(normal_vectors: torch.Tensor, pos_mat: torch.Tensor, dir_mat
 
     ``normal_vectors`` is a 3D vector. ``pos_mat`` and ``dir_mat`` are 3xN matrices of N 3D position and direction vectors, respectively.
     """
+    if normal_vectors.shape != (3,):
+        raise ValueError("normal_vectors must have shape (3,).")
+
+    if pos_mat.shape != (3, 5):
+        raise ValueError("pos_mat must have shape (3, 5).")
+
+    if dir_mat.shape != (3, 5):
+        raise ValueError("dir_mat must have shape (3, 5).")
+
+    inputs = (normal_vectors, pos_mat, dir_mat)
+    if not all(torch.is_floating_point(tensor) for tensor in inputs):
+        raise TypeError("All inputs must be floating-point tensors.")
+
+    if len({tensor.dtype for tensor in inputs}) != 1:
+        raise ValueError("All inputs must have the same dtype.")
+
+    if len({tensor.device for tensor in inputs}) != 1:
+        raise ValueError("All inputs must be on the same device.")
+
     w = normalize_normal_vector(normal_vectors)
     frame_3D = create_orthonormal_frame(w, dir_mat)
     intersections_2D = intersect_LOS_with_plane(dir_mat, pos_mat, frame_3D)

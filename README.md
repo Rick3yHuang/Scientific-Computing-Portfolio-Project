@@ -40,6 +40,17 @@ master_function(normal_vector, position_matrix, direction_matrix)
 where the normal has shape `(3,)`, and the position and direction matrices have
 shape `(3, 5)` with one observation per column.
 
+## Master Function
+
+```
+master_function(normal, positions, directions) -> F
+
+normal:     shape (3,), float64, CPU,
+positions:  shape (N, 3), float64, CPU,
+directions: shape (N, 3), float64, CPU,
+F:          shape (N,), float64, CPU
+```
+
 ## Current status
 
 Milestone 1 was completed on **2026-08-05**. The first end-to-end computational

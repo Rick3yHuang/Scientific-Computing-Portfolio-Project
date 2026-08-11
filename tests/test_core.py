@@ -84,6 +84,16 @@ def fabricated_data() -> dict[str, torch.Tensor]:
         "unit_normal": unit_normal,
     }
 
+
+def master_function_inputs(
+    fabricated_data: dict[str, torch.Tensor],
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    return (
+        fabricated_data["normal"],
+        fabricated_data["positions"],
+        fabricated_data["directions"],
+    )
+
 ######################################################
 # Tests for normalize_normal_vector ##################
 ######################################################
@@ -102,6 +112,8 @@ def test_normalize_normal_vector_returns_unit_vector(fabricated_data) -> None:
         (torch.tensor([1.0, float("nan"), 2.0]), "non-finite"),
     ],
 )
+
+
 def test_normalize_normal_vector_rejects_invalid_input(
     invalid_normal: torch.Tensor, message: str
 ) -> None:
@@ -215,12 +227,70 @@ def test_compute_free_terms_rejects_wrong_shape() -> None:
 def test_master_function_returns_zero_for_sampled_ellipse(
     fabricated_data
 ) -> None:
-    normal = fabricated_data["unit_normal"]
-    positions = fabricated_data["positions"]
-    directions = fabricated_data["directions"]
+    normal_vector = fabricated_data["unit_normal"]
+    position_matrix = fabricated_data["positions"]
+    direction_matrix = fabricated_data["directions"]
 
-    result = master_function(normal, positions, directions)
+    result = master_function(normal_vector, position_matrix, direction_matrix)
 
     torch.testing.assert_close(
         result, torch.zeros(2, dtype=torch.float64), atol=1e-10, rtol=1e-10
     )
+
+
+# output tests
+def test_master_function_returns_finite_float64_pair(fabricated_data) -> None:
+    result = master_function(*master_function_inputs(fabricated_data))
+
+    assert result.shape == (2,)
+    assert result.dtype == torch.float64
+    assert torch.isfinite(result).all()
+
+
+# Tests for exceptions
+@pytest.mark.parametrize(
+    ("input_index", "message"),
+    [
+        (1, r"pos_mat must have shape \(3, 5\)"),
+        (2, r"dir_mat must have shape \(3, 5\)"),
+    ],
+)
+
+
+def test_master_function_rejects_wrong_matrix_shape(
+    fabricated_data, input_index: int, message: str
+) -> None:
+    inputs = list(master_function_inputs(fabricated_data))
+    inputs[input_index] = torch.zeros((2, 4), dtype=torch.float64)
+
+    with pytest.raises(ValueError, match=message):
+        master_function(*inputs)
+
+
+@pytest.mark.parametrize("input_index", [0, 1, 2])
+
+
+def test_master_function_rejects_mismatched_dtype(
+    fabricated_data, input_index: int
+    ) -> None:
+    inputs = list(master_function_inputs(fabricated_data))
+    inputs[input_index] = inputs[input_index].to(torch.float32)
+
+    with pytest.raises(ValueError, match="same dtype"):
+        master_function(*inputs)
+
+
+def test_master_function_rejects_line_parallel_to_plane() -> None:
+    normal_vector = torch.tensor([0.0, 0.0, 1.0], dtype=torch.float64)
+    position_matrix = torch.ones((3, 5), dtype=torch.float64)
+    direction_matrix = torch.tensor(
+        [
+            [1.0, 1.0, 1.0, 1.0, 1.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0],
+        ],
+        dtype=torch.float64,
+    )
+
+    with pytest.raises(ValueError, match="parallel to the plane"):
+        master_function(normal_vector, position_matrix, direction_matrix)
