@@ -53,10 +53,20 @@ The public entry point is:
 master_function(normal, positions, directions) -> F
 
 normal:     shape (3,), float64, CPU,
-positions:  shape (N, 3), float64, CPU,
-directions: shape (N, 3), float64, CPU,
-F:          shape (N,), float64, CPU
+positions:  shape (3, 5), float64, CPU,
+directions: shape (3, 5), float64, CPU,
+F:          shape (2,), float64, CPU
 ```
+
+## Shared cases
+
+`src.cases` defines deterministic inputs and acceptance criteria shared by
+examples, tests, and future root-finding experiments. Each
+`MasterFunctionCase` records a case ID, fixed inputs, optional initial guess,
+dtype, expected status, optional reference root, and residual tolerance.
+
+The `fabricated_ellipse_root` case is a `float64` root case with a reference
+normal vector and residual tolerance of `1e-10`.
 
 ## Setup
 
@@ -75,12 +85,15 @@ python -m examples.basic_usage
 ```
 The expected outputs are 
 ```text
+case id: fabricated_ellipse_root
 normal_vector: shape=(3,), dtype=torch.float64
 position_matrix: shape=(3, 5), dtype=torch.float64
 direction_matrix: shape=(3, 5), dtype=torch.float64
-output (free terms): tensor([-7.1054e-15,  2.1649e-15], dtype=torch.float64)
+output (free terms): tensor([-5.7954e-14,  8.7708e-15], dtype=torch.float64)
 output shape: (2,)
-output norm: 7.42792306414152e-15
+output norm: 5.861357242137461e-14
+expected status: root
+residual tolerance: 1e-10
 ```
 Since the fabricated normal vector is designed to be a true solution, the free terms can be checked to be near zero.
 

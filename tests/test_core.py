@@ -1,6 +1,7 @@
 import pytest
 import torch
 
+from src.cases import MasterFunctionCase, get_master_function_case
 from src.core import (
     compute_free_terms,
     create_orthonormal_frame,
@@ -93,6 +94,11 @@ def master_function_inputs(
         fabricated_data["positions"],
         fabricated_data["directions"],
     )
+
+
+@pytest.fixture
+def fabricated_root_case() -> MasterFunctionCase:
+    return get_master_function_case("fabricated_ellipse_root")
 
 ######################################################
 # Tests for normalize_normal_vector ##################
@@ -225,25 +231,34 @@ def test_compute_free_terms_rejects_wrong_shape() -> None:
 # Tests for master_function ##########################
 ######################################################
 def test_master_function_returns_zero_for_sampled_ellipse(
-    fabricated_data
+    fabricated_root_case: MasterFunctionCase,
 ) -> None:
-    normal_vector = fabricated_data["unit_normal"]
-    position_matrix = fabricated_data["positions"]
-    direction_matrix = fabricated_data["directions"]
-
-    result = master_function(normal_vector, position_matrix, direction_matrix)
+    result = master_function(
+        fabricated_root_case.normal_vector,
+        fabricated_root_case.position_matrix,
+        fabricated_root_case.direction_matrix,
+    )
 
     torch.testing.assert_close(
-        result, torch.zeros(2, dtype=torch.float64), atol=1e-10, rtol=1e-10
+        result,
+        torch.zeros(2, dtype=fabricated_root_case.dtype),
+        atol=fabricated_root_case.residual_tolerance,
+        rtol=0,
     )
 
 
 # output tests
-def test_master_function_returns_finite_float64_pair(fabricated_data) -> None:
-    result = master_function(*master_function_inputs(fabricated_data))
+def test_master_function_returns_finite_float64_pair(
+    fabricated_root_case: MasterFunctionCase,
+) -> None:
+    result = master_function(
+        fabricated_root_case.normal_vector,
+        fabricated_root_case.position_matrix,
+        fabricated_root_case.direction_matrix,
+    )
 
     assert result.shape == (2,)
-    assert result.dtype == torch.float64
+    assert result.dtype == fabricated_root_case.dtype
     assert torch.isfinite(result).all()
 
 
@@ -258,9 +273,13 @@ def test_master_function_returns_finite_float64_pair(fabricated_data) -> None:
 
 
 def test_master_function_rejects_wrong_matrix_shape(
-    fabricated_data, input_index: int, message: str
+    fabricated_root_case: MasterFunctionCase, input_index: int, message: str
 ) -> None:
-    inputs = list(master_function_inputs(fabricated_data))
+    inputs = [
+        fabricated_root_case.normal_vector,
+        fabricated_root_case.position_matrix,
+        fabricated_root_case.direction_matrix,
+    ]
     inputs[input_index] = torch.zeros((2, 4), dtype=torch.float64)
 
     with pytest.raises(ValueError, match=message):
@@ -271,9 +290,13 @@ def test_master_function_rejects_wrong_matrix_shape(
 
 
 def test_master_function_rejects_mismatched_dtype(
-    fabricated_data, input_index: int
-    ) -> None:
-    inputs = list(master_function_inputs(fabricated_data))
+    fabricated_root_case: MasterFunctionCase, input_index: int
+) -> None:
+    inputs = [
+        fabricated_root_case.normal_vector,
+        fabricated_root_case.position_matrix,
+        fabricated_root_case.direction_matrix,
+    ]
     inputs[input_index] = inputs[input_index].to(torch.float32)
 
     with pytest.raises(ValueError, match="same dtype"):
